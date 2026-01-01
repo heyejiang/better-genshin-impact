@@ -1,4 +1,4 @@
-name: BetterGI Publish
+name: BetterGI Publish Web
 run-name: "BetterGI ${{ inputs.version }}"
 
 on:
