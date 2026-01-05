@@ -31,7 +31,7 @@ public sealed class RepoWebBridge
     {
         ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico"
     };
-
+    
     public async Task<string> GetRepoJson()
     {
         try
@@ -77,7 +77,7 @@ public sealed class RepoWebBridge
         return await File.ReadAllTextAsync(userConfigPath);
     }
 
-    public async Task<string> GetFile(string relPath)
+    public Task<string> GetFile(string relPath)
     {
         try
         {
@@ -92,34 +92,53 @@ public sealed class RepoWebBridge
             string normalizedFilePath = Path.GetFullPath(filePath);
             if (!normalizedFilePath.StartsWith(normalizedBasePath, StringComparison.OrdinalIgnoreCase))
             {
-                   return "404";
-            }
-
-            if (!File.Exists(filePath))
-            {
-                return "404";
+                return Task.FromResult("404");
             }
 
             string extension = Path.GetExtension(filePath).ToLower();
     
             if (AllowedTextExtensions.Contains(extension)) 
             {
-                return await File.ReadAllTextAsync(filePath);
+                // 读取文本文件
+                string? content = ScriptRepoUpdater.Instance.ReadFileFromCenterRepo(relPath);
+                return Task.FromResult(string.IsNullOrEmpty(content) ? "404" : content);
             }
             else if (AllowedImageExtensions.Contains(extension))
             {
-                byte[] bytes = await File.ReadAllBytesAsync(filePath);
-                return Convert.ToBase64String(bytes);
+                // 读取图片文件，返回 Base64 编码
+                byte[]? bytes = ScriptRepoUpdater.Instance.ReadBinaryFileFromCenterRepo(relPath);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    return Task.FromResult("404");
+                }
+
+                string base64 = Convert.ToBase64String(bytes);
+                return Task.FromResult(base64);
             }
 
-            return "404";
+            return Task.FromResult("404");
         }
         catch
         {
-            return "404";
+            return Task.FromResult("404");
         }
     }
-    
+
+    private static string GetMimeType(string extension)
+    {
+        return extension.ToLower() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".webp" => "image/webp",
+            ".svg" => "image/svg+xml",
+            ".ico" => "image/x-icon",
+            _ => "application/octet-stream"
+        };
+    }
+
     public async Task<bool> UpdateSubscribed(string path)
     {
         try
