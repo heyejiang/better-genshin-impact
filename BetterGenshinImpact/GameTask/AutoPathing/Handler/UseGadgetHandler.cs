@@ -48,6 +48,7 @@ public class UseGadgetHandler : IActionHandler
             {
                 Logger.LogWarning("小道具正在CD中，当前：{Cd}秒，可能是识别错误。重试！", cd);
                 await Delay(1000, ct);
+                screen.Dispose();
                 screen = CaptureToRectArea();
                 cd = GetCurrentCd(screen);
             }
