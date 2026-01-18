@@ -44,6 +44,7 @@
 蓝砚 e,wait(0.8),s(0.2),attack(0.33),dash(0.1),attack(0.55),keypress(q),attack(0.1)
 
 // 后台、挂元素、副C、先手
+哥伦比娅 e,attack(0.2),q,attack(0.2),q,e
 玛薇卡 attack(0.2),e,wait(0.2),keypress(q),attack(0.15)
 杜林 attack(0.1), keypress(q), attack(0.2), click(middle), e, wait(0.2), e, keypress(q), wait(0.2), keypress(q), attack(0.2), keypress(q), attack(0.2)
 迪希雅 e,attack(0.2),e
@@ -57,7 +58,7 @@
 纳西妲 e(hold),click(middle),keypress(q),wait(0.3),keypress(q),attack(0.3),keypress(q),attack(0.2)
 艾梅莉埃 e,attack(0.2), keypress(q),attack(0.2),keypress(q),wait(0.2),keypress(q),attack(0.2)
 丝柯克 attack(0.2),click(middle),keypress(q),wait(0.05),keypress(q),attack(0.05),click(middle),keydown(E),wait(0.22),attack(0.08),click(middle),keyup(E),keypress(q),wait(0.08),keypress(q)
-芙宁娜 e,attack(0.85), keypress(e), keypress(Q), attack(0.2), keydown(S), keypress(e), attack(0.2), keyup(S), keypress(Q), attack(0.2)
+芙宁娜 charge(0.3),e,attack(0.85), keypress(e), keypress(Q), attack(0.2), keydown(S), keypress(e), attack(0.2), keyup(S), keypress(Q), attack(0.2)
 爱诺 e, wait(0.3), keypress(q), attack(0.22), keypress(q), attack(0.21)
 夏洛蒂 e, click(middle), attack(0.3), keypress(q), attack(0.22), click(middle), dash(0.1),wait(0.3),keypress(q), attack(0.21)
 菈乌玛 attack(0.1),keypress(q),attack(0.15),keydown(E),wait(0.4),attack(0.3),keyup(E),attack(0.15),keypress(q),attack(0.15),keydown(E),wait(0.4),attack(0.3),keyup(E),attack(0.2),wait(0.1)
@@ -115,3 +116,33 @@
 仆人 charge(0.35), j, keydown(s),attack(1.17),attack(0.45),keyup(s),keydown(w),attack(0.38),attack(0.6),keyup(w),wait(0.2),keydown(s),attack(1.17),attack(0.45),keyup(s),keydown(w),attack(0.38),attack(0.6),keyup(w),wait(0.2)
 
 // （满命转圈喷5.5秒）希格雯 e(hold),keypress(q),wait(0.2),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1),moveby(300,0),wait(0.1)
+
+
+
+
+
+// 脚本语法 https://bettergi.com/feats/task/domain.html#%E6%88%98%E6%96%97%E7%AD%96%E7%95%A5%E8%84%9A%E6%9C%AC%E7%BC%96%E5%86%99
+
+// 元素战技	skill	e	hold 代表长按，wait代表等待技能cd结束，选填	触发键盘按下e键，并等待200ms。夜兰按两次e才能中断元素战技的释放。其中纳西妲长e会自动旋转。	skill,e,e(hold),e(hold,wait)
+// 元素爆发	burst	q		触发键盘按下q键，至少会等待1.7秒，建议下一步动作为切换角色，保证元素爆发释放完成。	burst,q
+// 普通攻击	attack		普攻持续时间(s)，选填	触发左键连击，每200ms触发一次左键单击	attack,attack(5.5)
+// 重击	charge		长按的持续时间(s)，选填	长按左键。其中那维莱特重击会自动旋转。	charge(6)
+// 等待	wait		等待时间(s)，必填	程序等待	wait(0.5)
+// 冲刺	dash		冲刺时间(s)，选填	朝当前方向冲刺	dash,dash(2)
+// 跳跃	jump	j		跳跃一下	jump
+// 行走	walk		1. 行走的方向，必填 2. 行走的时间(s)，必填	按下w/a/s/d行走	walk(w,0.2)
+// 向前行走	w		行走的时间(s)，必填	按下w行走，等效于walk(w,?)	w(0.2)
+// 向左行走	a		行走的时间(s)，必填	按下a行走，等效于walk(a,?)	a(0.2)
+// 向后行走	s		行走的时间(s)，必填	按下s行走，等效于walk(s,?)	s(0.2)
+// 向右行走	d		行走的时间(s)，必填	按下d行走，等效于walk(d,?)	d(0.2)
+
+// ###高级语法
+// 鼠标按下	mousedown	鼠标按键left、right、middle，选填，不填默认left	mousedown(left)
+// 鼠标松开	mouseup	鼠标按键left、right、middle，选填，不填默认left	mouseup(right)
+// 鼠标单击	click	鼠标按键left、right、middle，选填，不填默认left	click(middle)
+// 鼠标相对移动	moveby	1. X轴移动相对距离，向左转动为负数，向右为正数，必填。2. Y轴移动距离，向上转动为负数，向下为正数，必填	moveby(500,0),moveby(100,-100)
+// 键盘按下	keydown	键盘按下键的名称，必填，按键代码	keydown(A)
+// 键盘松开	keyup	键盘松开键的名称，必填，按键代码	keyup(D)
+// 键盘点按	keypress	键盘点按键的名称，必填，按键代码	keypress(F1)
+
+// 滑步弓：mousedown(left),wait(0.001),mouseup(left),wait(0.218),mousedown(left),wait(0.001),mouseup(left),wait(0.219),mousedown(left),wait(0.25),mouseup(left),wait(0.206)

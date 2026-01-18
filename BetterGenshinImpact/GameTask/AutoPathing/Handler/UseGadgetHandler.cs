@@ -42,8 +42,18 @@ public class UseGadgetHandler : IActionHandler
                 double.TryParse(waypointForTrack.ActionParams, out maxWaitSeconds); // 最大等待时间，单位秒
             }
 
-            var screen = CaptureToRectArea();
-            var cd = GetCurrentCd(screen);
+            double cd;
+            using (var screen = CaptureToRectArea())
+            {
+                cd = GetCurrentCd(screen);
+            }
+            if (cd > 5)
+            {
+                Logger.LogWarning("小道具正在CD中，当前：{Cd}秒，可能是识别错误。重试！", cd);
+                await Delay(1000, ct);
+                using var screen2 = CaptureToRectArea();
+                cd = GetCurrentCd(screen2);
+            }
             if (cd > 100)
             {
                 Logger.LogWarning("小道具正在CD中，当前剩余时间：{Cd}秒，时间过长，可能是识别错误。跳过！", cd);
