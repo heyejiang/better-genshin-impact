@@ -1,0 +1,152 @@
+name: BetterGI Publish Release
+run-name: "BetterGI ${{ inputs.version }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'BetterGI Version (eg: 0.55.1, 0.56.5-alpha.1)'
+        required: true
+        type: string
+      create-release:
+        type: boolean
+        description: '创建 GitHub Release'
+        required: true
+        default: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+    steps:
+      - name: Set version from input or tag
+        id: set-version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if ! [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+              echo "❌ 错误：版本格式必须符合语义化版本规范 (例如: 1.2.3, 1.2.3-alpha, 1.2.3+build.123)"
+              exit 1
+            fi
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "✨ 手动触发构建，版本号：${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "🏷️ 从 tag 触发构建，版本号：${VERSION}"
+          fi
+
+  build_web_map_editor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: huiyadanli/bettergi-map
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm install
+      - run: npm run build:single
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web_map_editor
+          path: dist/
+
+  build_web_scripts_list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: A-Little-AnQi/bettergi-script-web
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm install
+      - run: npm run build:single
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web_scripts_list
+          path: dist/
+  
+  build_dist:
+    runs-on: windows-latest
+    needs: [validate, build_web_map_editor, build_web_scripts_list]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: 更新 csproj 文件版本号
+        run: |
+          $version = '${{ needs.validate.outputs.version }}'
+          (Get-Content BetterGenshinImpact/BetterGenshinImpact.csproj) -replace '<Version>.*</Version>', "<Version>$version</Version>" | Set-Content BetterGenshinImpact/BetterGenshinImpact.csproj
+      - name: 自动提交更改
+        if: github.repository_owner == 'babalae'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update version to ${{ needs.validate.outputs.version }}"
+          branch: main
+          file_pattern: BetterGenshinImpact/BetterGenshinImpact.csproj
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/BetterGenshinImpact.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      - name: 🛠️ Build application
+        run: dotnet publish BetterGenshinImpact/BetterGenshinImpact.csproj -c Release -p:PublishProfile=FolderProfile -p:Version=${{ needs.validate.outputs.version }}
+        continue-on-error: true
+      - name: 🧹 Clear & Move Files
+        run: |
+            $sourceDir = ".\BetterGenshinImpact\bin\x64\Release\net8.0-windows10.0.22621.0\publish\win-x64"
+            Get-ChildItem -Path $sourceDir -Recurse -Filter "*.lib" | Remove-Item -Force
+            Get-ChildItem -Path $sourceDir -Recurse -Filter "*ffmpeg*.dll" | Remove-Item -Force
+            Get-ChildItem -Path $sourceDir -Recurse -Filter "*.pdb" | Remove-Item -Force
+            New-Item -Path "dist/BetterGI" -ItemType Directory
+            xcopy "$sourceDir\*" ".\dist\BetterGI\" /E /H /I /Y
+      - uses: actions/download-artifact@v4
+        with:
+          name: web_map_editor
+          path: dist/BetterGI/Assets/Map/Editor
+      - uses: actions/download-artifact@v4
+        with:
+          name: web_scripts_list
+          path: dist/BetterGI/Assets/Web/ScriptRepo
+      - uses: actions/checkout@v4
+        with:
+          repository: babalae/bettergi-publish
+          path: publish
+      - name: 📦 Generate archive
+        run: |
+          cd dist
+          7z a "BetterGI_v${{ needs.validate.outputs.version }}.7z" BetterGI -t7z -mx=5 -mf=BCJ2 -r -y
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BetterGI_7z
+          path: dist/BetterGI_v*.7z
+
+  create_release:
+    if: github.event.inputs.create-release == 'true'
+    needs: [validate, build_dist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.validate.outputs.version }}
+          name: BetterGI v${{ needs.validate.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(needs.validate.outputs.version, '-') }}
+          make_latest: ${{ !contains(needs.validate.outputs.version, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/BetterGI_7z/*.7z
