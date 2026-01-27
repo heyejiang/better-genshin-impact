@@ -1,41 +1,39 @@
-name: BetterGI Publish Release
+name: BetterGI Publish (7z Only)
 run-name: "BetterGI ${{ inputs.version }}"
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'BetterGI Version (eg: 0.55.1, 0.56.5-alpha.1)'
+        description: 'BetterGI Version (eg: 0.35.1, 0.36.5-alpha.1)'
         required: true
         type: string
       create-release:
         type: boolean
-        description: '创建 GitHub Release'
+        description: '创建 GitHub Release 草稿'
         required: true
         default: true
 
 jobs:
+  # 验证版本格式
   validate:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.set-version.outputs.version }}
     steps:
-      - name: Set version from input or tag
+      - name: 验证版本格式
         id: set-version
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if ! [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
-              echo "❌ 错误：版本格式必须符合语义化版本规范 (例如: 1.2.3, 1.2.3-alpha, 1.2.3+build.123)"
-              exit 1
-            fi
+          if [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "✨ 手动触发构建，版本号：${{ github.event.inputs.version }}"
+            echo "✅ 版本格式有效: ${{ github.event.inputs.version }}"
           else
-            VERSION=${GITHUB_REF#refs/tags/v}
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-            echo "🏷️ 从 tag 触发构建，版本号：${VERSION}"
+            echo "❌ 错误：版本格式必须符合语义化版本规范"
+            echo "有效示例: 1.2.3, 1.2.3-alpha, 1.2.3+build.123"
+            exit 1
           fi
 
+  # 构建网页地图编辑器
   build_web_map_editor:
     runs-on: ubuntu-latest
     steps:
@@ -53,6 +51,7 @@ jobs:
           name: web_map_editor
           path: dist/
 
+  # 构建网页脚本列表
   build_web_scripts_list:
     runs-on: ubuntu-latest
     steps:
@@ -70,6 +69,7 @@ jobs:
           name: web_scripts_list
           path: dist/
   
+  # 构建主应用程序
   build_dist:
     runs-on: windows-latest
     needs: [validate, build_web_map_editor, build_web_scripts_list]
@@ -89,17 +89,16 @@ jobs:
           commit_message: "Update version to ${{ needs.validate.outputs.version }}"
           branch: main
           file_pattern: BetterGenshinImpact/BetterGenshinImpact.csproj
-      - name: Cache NuGet packages
+      - name: 缓存 NuGet 包
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/BetterGenshinImpact.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
-      - name: 🛠️ Build application
+      - name: 🛠️ 构建应用程序
         run: dotnet publish BetterGenshinImpact/BetterGenshinImpact.csproj -c Release -p:PublishProfile=FolderProfile -p:Version=${{ needs.validate.outputs.version }}
-        continue-on-error: true
-      - name: 🧹 Clear & Move Files
+      - name: 🧹 清理文件
         run: |
             $sourceDir = ".\BetterGenshinImpact\bin\x64\Release\net8.0-windows10.0.22621.0\publish\win-x64"
             Get-ChildItem -Path $sourceDir -Recurse -Filter "*.lib" | Remove-Item -Force
@@ -107,6 +106,7 @@ jobs:
             Get-ChildItem -Path $sourceDir -Recurse -Filter "*.pdb" | Remove-Item -Force
             New-Item -Path "dist/BetterGI" -ItemType Directory
             xcopy "$sourceDir\*" ".\dist\BetterGI\" /E /H /I /Y
+      # 下载前面构建好的web内容
       - uses: actions/download-artifact@v4
         with:
           name: web_map_editor
@@ -115,19 +115,22 @@ jobs:
         with:
           name: web_scripts_list
           path: dist/BetterGI/Assets/Web/ScriptRepo
+      # 下载构建 repo 的内容补充数据
       - uses: actions/checkout@v4
         with:
           repository: babalae/bettergi-publish
           path: publish
-      - name: 📦 Generate archive
+      # 创建 7z 压缩包
+      - name: 📦 生成 7z 压缩包
         run: |
           cd dist
           7z a "BetterGI_v${{ needs.validate.outputs.version }}.7z" BetterGI -t7z -mx=5 -mf=BCJ2 -r -y
       - uses: actions/upload-artifact@v4
         with:
           name: BetterGI_7z
-          path: dist/BetterGI_v*.7z
+          path: dist/BetterGI_*.7z
 
+  # 创建 GitHub Release
   create_release:
     if: github.event.inputs.create-release == 'true'
     needs: [validate, build_dist]
@@ -137,16 +140,15 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: Create Release
+          name: BetterGI_7z
+          path: .
+      - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.validate.outputs.version }}
           name: BetterGI v${{ needs.validate.outputs.version }}
           draft: false
           prerelease: ${{ contains(needs.validate.outputs.version, '-') }}
-          make_latest: ${{ !contains(needs.validate.outputs.version, '-') }}
+          generate_release_notes: true
           fail_on_unmatched_files: true
-          files: |
-            artifacts/BetterGI_7z/*.7z
+          files: BetterGI_v*.7z
